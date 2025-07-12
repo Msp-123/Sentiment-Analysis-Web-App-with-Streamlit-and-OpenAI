@@ -5,13 +5,13 @@ from openai import OpenAI
 import pandas as pd
 import time
 
-# .env dosyasını oku
+# Read .env file
 load_dotenv()
 
-# OpenAI istemcisi oluştur
+# Create OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Streamlit başlığı
+# Streamlit title
 st.title("Sentiment Analysis Tool")
 
 st.write(
@@ -22,45 +22,45 @@ st.write(
     """
 )
 
-# Sekmeler oluştur
+# Create tabs
 tab1, tab2 = st.tabs(['Single Sentence Analysis', 'Excel File Sentiment Analysis'])
 
 # -------------------------------
-# Tab 1: Tek Cümle Analizi
+# Tab 1: Single Sentence Analysis
 # -------------------------------
 
 with tab1:
     dil_secimi = st.selectbox(
         "Select a language",
-        ["English" ,"Türkçe" ]
+        ["English", "Türkçe"]
     )
 
     if dil_secimi == "Türkçe":
-        user_input = st.text_area("Lütfen analiz etmek istediğiniz metni girin:")
+        user_input = st.text_area("Please enter the text you want to analyze:")
 
     elif dil_secimi == "English":
         user_input = st.text_area("Please enter the text you want to analyze:")
 
 
-    if st.button("Analysis", key="single_analysis_button"):
+    if st.button("Analyze", key="single_analysis_button"):
         if not user_input.strip():
             st.warning("Please enter a text.")
 
         else:
-            #Prompt
+            # Prompt
             if dil_secimi == "Türkçe":
                 prompt_instruction  = (
-                    "Aşağıdaki metnin duygusunu belirle ve güven skorunu ver.\n"
-                    "Yalnızca şu formatta cevap ver:\n"
-                    "Duygu: (Olumlu/Olumsuz/Nötr)\n"
-                    "Skor: (0-100 arası tam sayı)\n\n"
-                    f"Metin: {user_input}\n\n"
-                    "Cevap:"
+                    "Determine the sentiment of the following text and give your confidence score.\n"
+                    "Answer only in the following format:\n"
+                    "Sentiment: (Positive/Negative/Neutral)\n"
+                    "Score: (Integer from 0-100)\n\n"
+                    f"Text: {user_input}\n\n"
+                    "Answer:"
                 )
 
-                cevap_basligi = "Cevap:"
-                sentiment_prefix = "Duygu:"
-                score_prefix = "Skor:"
+                cevap_basligi = "Answer:"
+                sentiment_prefix = "Sentiment:"
+                score_prefix = "Score:"
 
             elif dil_secimi == "English":
                 prompt_instruction  = (
@@ -77,7 +77,7 @@ with tab1:
                 score_prefix = "Score:"
 
 
-            # Prompt birleştirme
+            # Combine prompt
             prompt_text = (
                 f"{prompt_instruction}\n\n"
                 f"Text: {user_input}\n\n"
@@ -85,36 +85,31 @@ with tab1:
             )
 
             try:
-            # OpenAI Chat Completion isteği
-
+                # OpenAI Chat Completion request
                 completion = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
-                        {"role": "system", "content": "You are a professional sentiment analysis expert."}, # Modelin kimliği, rolü ve davranış biçimini tanımlı
-                        {"role": "user", "content": prompt_text} # Kullanıcının mesajıdır.
+                        {"role": "system", "content": "You are a professional sentiment analysis expert."},
+                        {"role": "user", "content": prompt_text}
                     ],
-                    temperature=0 # Bu parametre cevabın rastgeleliğini / yaratıcılığını kontrol eder. 
+                    temperature=0
                 )
 
-                # Model cevabını al
+                # Get model response
                 response_text = completion.choices[0].message.content.strip()
             
 
-                # Çıktıyı parçala
+                # Parse output
                 lines = response_text.split("\n")
-                sentiment_line = next(line for line in lines if line.startswith("Duygu:"))
-                score_line = next(line for line in lines if line.startswith("Skor:"))
+                sentiment_line = next(line for line in lines if line.startswith("Sentiment:"))
+                score_line = next(line for line in lines if line.startswith("Score:"))
 
-                sentiment = sentiment_line.replace("Duygu:", "").strip()
-                score = score_line.replace("Skor:", "").strip()
+                sentiment = sentiment_line.replace("Sentiment:", "").strip()
+                score = score_line.replace("Score:", "").strip()
 
-                # Sonucu göster
-                if dil_secimi == "Türkçe":
-                    st.success(f"Duygu: {sentiment}")
-                    st.info(f"Güven Skoru: {score}/100")
-                else:
-                    st.success(f"Sentiment: {sentiment}")
-                    st.info(f"Confidence Score: {score}/100")
+                # Display result
+                st.success(f"Sentiment: {sentiment}")
+                st.info(f"Confidence Score: {score}/100")
 
 
             except Exception as e:
@@ -122,7 +117,7 @@ with tab1:
 
 
 # -------------------------------
-# Tab 2: Excel Toplu Analiz
+# Tab 2: Excel Batch Analysis
 # -------------------------------
 with tab2:
     uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
@@ -134,7 +129,7 @@ with tab2:
         st.dataframe(df.head())
 
         column_name = st.selectbox(
-            "Select the column you want to do sentiment analysis",
+            "Select the column you want to analyze",
             df.columns
         )
 
@@ -159,31 +154,27 @@ with tab2:
 
 
                 try:
-                # OpenAI Chat Completion isteği
+                    # OpenAI Chat Completion request
                     completion = client.chat.completions.create(
                         model="gpt-4o-mini",
                         messages=[
-                            {"role": "system", "content":"Sen profesyonel bir duygu analiz uzmanısın."}, # Modelin kimliği, rolü ve davranış biçimini tanımlı
-                            {"role": "user", "content": prompt_text} # Kullanıcının mesajıdır.
+                            {"role": "system", "content": "You are a professional sentiment analysis expert."},
+                            {"role": "user", "content": prompt_text}
                         ],
-                        temperature=0 # Bu parametre cevabın rastgeleliğini / yaratıcılığını kontrol eder. 
+                        temperature=0
                     )
 
-                    # Model cevabını al
+                    # Get model response
                     response_text = completion.choices[0].message.content.strip()
                 
 
-                    # Çıktıyı parçala
+                    # Parse output
                     lines = response_text.split("\n")
                     sentiment_line = next(line for line in lines if line.startswith("Sentiment:"))
                     score_line = next(line for line in lines if line.startswith("Score:"))
 
                     sentiment = sentiment_line.replace("Sentiment:", "").strip()
                     score = score_line.replace("Score:", "").strip()
-
-                    # Sonucu göster
-                    #st.success(f"Emotion: {sentiment}")
-                    #st.info(f"Confidence Score: {score}/100")
 
 
                 except Exception as e:
@@ -197,7 +188,7 @@ with tab2:
 
 
                 progress_bar.progress((idx + 1) / len(texts))
-                status_text.text(f"{idx + 1} / {len(texts)} was analyzed.")
+                status_text.text(f"{idx + 1} / {len(texts)} analyzed.")
 
                 time.sleep(0.2)
 
@@ -208,7 +199,7 @@ with tab2:
             st.dataframe(df)
 
 
-            # Data download_button için byte stream gerekiyor
+            # Create byte stream for download_button
             from io import BytesIO
             buffer = BytesIO()
             df.to_excel(buffer, index=False, engine="openpyxl")
@@ -220,4 +211,3 @@ with tab2:
                 file_name="sentiment_analysis_result.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
-            
